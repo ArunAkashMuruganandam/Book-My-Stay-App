@@ -1,0 +1,139 @@
+import java.io.*;
+import java.util.*;
+
+class Reservation implements Serializable {
+    private String reservationId;
+    private String guestName;
+    private String roomType;
+
+    public Reservation(String reservationId, String guestName, String roomType) {
+        this.reservationId = reservationId;
+        this.guestName = guestName;
+        this.roomType = roomType;
+    }
+
+    public String getReservationId() {
+        return reservationId;
+    }
+
+    public String getGuestName() {
+        return guestName;
+    }
+
+    public String getRoomType() {
+        return roomType;
+    }
+}
+
+class RoomInventory implements Serializable {
+    private Map<String, Integer> inventory;
+
+    public RoomInventory() {
+        inventory = new HashMap<>();
+    }
+
+    public void setInventory(Map<String, Integer> inventory) {
+        this.inventory = inventory;
+    }
+
+    public Map<String, Integer> getInventory() {
+        return inventory;
+    }
+
+    public void display() {
+        for (String type : inventory.keySet()) {
+            System.out.println(type + " Available: " + inventory.get(type));
+        }
+    }
+}
+
+class BookingHistory implements Serializable {
+    private List<Reservation> history;
+
+    public BookingHistory() {
+        history = new ArrayList<>();
+    }
+
+    public void addReservation(Reservation r) {
+        history.add(r);
+    }
+
+    public List<Reservation> getAll() {
+        return history;
+    }
+}
+
+class SystemState implements Serializable {
+    private RoomInventory inventory;
+    private BookingHistory history;
+
+    public SystemState(RoomInventory inventory, BookingHistory history) {
+        this.inventory = inventory;
+        this.history = history;
+    }
+
+    public RoomInventory getInventory() {
+        return inventory;
+    }
+
+    public BookingHistory getHistory() {
+        return history;
+    }
+}
+
+class PersistenceService {
+    private static final String FILE_NAME = "system_state.dat";
+
+    public void save(SystemState state) {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(FILE_NAME))) {
+            oos.writeObject(state);
+            System.out.println("State saved.");
+        } catch (Exception e) {
+            System.out.println("Save failed.");
+        }
+    }
+
+    public SystemState load() {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(FILE_NAME))) {
+            return (SystemState) ois.readObject();
+        } catch (Exception e) {
+            System.out.println("No valid saved state found. Starting fresh.");
+            return null;
+        }
+    }
+}
+
+public class HotelBookingApp {
+    public static void main(String[] args) {
+        PersistenceService persistence = new PersistenceService();
+
+        SystemState state = persistence.load();
+
+        RoomInventory inventory;
+        BookingHistory history;
+
+        if (state != null) {
+            inventory = state.getInventory();
+            history = state.getHistory();
+            System.out.println("State restored:");
+        } else {
+            inventory = new RoomInventory();
+            Map<String, Integer> data = new HashMap<>();
+            data.put("Single Room", 2);
+            data.put("Double Room", 1);
+            inventory.setInventory(data);
+
+            history = new BookingHistory();
+            history.addReservation(new Reservation("S1", "Arun", "Single Room"));
+            history.addReservation(new Reservation("D1", "Rahul", "Double Room"));
+        }
+
+        inventory.display();
+
+        for (Reservation r : history.getAll()) {
+            System.out.println(r.getReservationId() + " | " + r.getGuestName() + " | " + r.getRoomType());
+        }
+
+        persistence.save(new SystemState(inventory, history));
+    }
+}
